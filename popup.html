@@ -66,7 +66,7 @@
     html, body { margin: 0; overflow: hidden; }
     body {
       width: 300px;
-      height: 360px;
+      height: 320px;
       background: var(--bg);
       color: var(--text);
       font: 12px/1.4 var(--font-ui);
@@ -190,24 +190,6 @@
       text-transform: uppercase;
       color: var(--text-2);
     }
-
-    .substats {
-      width: 100%;
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
-    .substat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-    .substat + .substat { border-left: 1px solid var(--line); }
-    .substat-value {
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-    }
-    .substat-label { font-size: 10px; color: var(--text-2); letter-spacing: 0.3px; }
 
     /* New citations entry */
     .new-row {
@@ -428,13 +410,14 @@
     .empty-sub { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-2); text-wrap: balance; }
 
     /* Settings form */
-    .settings-form { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .settings-form { padding: 10px 16px 12px; display: flex; flex-direction: column; gap: 9px; }
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field-label { font-size: 11px; font-weight: 600; color: var(--text); }
     .field-label .hint { font-weight: 400; color: var(--text-2); }
+    .field-label .hint.is-error { color: var(--danger); }
     .field input {
       width: 100%;
-      padding: 8px 10px;
+      padding: 6px 10px;
       font: 12px var(--font-ui);
       color: var(--text);
       background: var(--surface-sunken);
@@ -465,9 +448,8 @@
     }
     .primary-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
     .primary-btn:active { transform: none; }
+    .primary-btn.is-done { background: var(--fresh); }
 
-    .form-status { min-height: 15px; margin: -2px 0 0; font-size: 11px; text-align: center; color: var(--fresh); }
-    .form-status.is-error { color: var(--danger); }
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }
@@ -492,17 +474,6 @@
             <span id="citation-delta" class="delta" hidden></span>
           </div>
           <div class="metric-label">Citations</div>
-        </div>
-
-        <div class="substats">
-          <div class="substat">
-            <span id="h-index" class="substat-value">—</span>
-            <span class="substat-label">h-index</span>
-          </div>
-          <div class="substat">
-            <span id="i10-index" class="substat-value">—</span>
-            <span class="substat-label">i10-index</span>
-          </div>
         </div>
       </section>
 
@@ -563,8 +534,8 @@
       </header>
       <form id="settings-form" class="sheet-body settings-form" novalidate autocomplete="off">
         <label class="field">
-          <span class="field-label">Google Scholar profile <span class="hint">· URL or user ID</span></span>
-          <input id="input-scholar" type="text" spellcheck="false" placeholder="https://scholar.google.com/citations?user=…">
+          <span class="field-label">Google Scholar profile <span id="scholar-hint" class="hint" role="status">· URL or user ID</span></span>
+          <input id="input-scholar" type="text" spellcheck="false" aria-describedby="scholar-hint" placeholder="https://scholar.google.com/citations?user=…">
         </label>
         <label class="field">
           <span class="field-label">Display name <span class="hint">· optional</span></span>
@@ -574,8 +545,7 @@
           <span class="field-label">Homepage <span class="hint">· optional</span></span>
           <input id="input-home" type="text" spellcheck="false" placeholder="https://your-site.com">
         </label>
-        <button type="submit" class="primary-btn">Save</button>
-        <p id="settings-status" class="form-status" role="status"></p>
+        <button id="save-settings" type="submit" class="primary-btn">Save</button>
       </form>
     </section>
 

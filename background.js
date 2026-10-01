@@ -34,18 +34,13 @@ function toInt(text) {
   return digits ? parseInt(digits, 10) : 0;
 }
 
-// Profile name plus the "All" column of the stats table: citations, h-index, i10-index.
+// Profile name and total citations (the first cell of the stats table).
 function parseProfile(html) {
-  const cells = [...html.matchAll(/class="gsc_rsb_std"[^>]*>([^<]*)</g)].map((m) => toInt(m[1]));
-  if (cells.length === 0) return null;
+  const total = html.match(/class="gsc_rsb_std"[^>]*>([^<]*)</);
+  if (!total) return null;
 
   const name = html.match(/id="gsc_prf_in"[^>]*>([\s\S]*?)<\/div>/);
-  return {
-    name: name ? cleanText(name[1]) : "",
-    total: cells[0],
-    hIndex: cells.length > 2 ? cells[2] : null,
-    i10Index: cells.length > 4 ? cells[4] : null
-  };
+  return { name: name ? cleanText(name[1]) : "", total: toInt(total[1]) };
 }
 
 // One entry per row of the papers table. Rows are split first so a regex can never

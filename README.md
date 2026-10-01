@@ -12,7 +12,7 @@ Designed with a calm, Morandi-inspired color palette and an iOS-style slide-up i
 
 - **Live citation badge** — your total citation count sits on the extension icon and turns green when new citations are waiting.
 - **New citations** — see exactly which papers gained citations since you last looked, with before → after counts. Click a paper to see who cited it, newest first.
-- **At a glance** — total citations with a `+N` since your last look, plus h-index and i10-index.
+- **At a glance** — your total citations, with a `+N` for what's new since your last look.
 - **Privacy-friendly** — everything runs locally in your browser. No accounts, no servers, no tracking. Your configuration is stored only in `chrome.storage.local`.
 - **One-time setup** — paste your Scholar profile URL on first launch and you're done.
 - **Polished UI** — slide-up sheets, soft shadows, a Morandi color scheme, and automatic dark mode.

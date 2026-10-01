@@ -18,8 +18,6 @@ const profileNameEl = $("profile-name");
 const metricEl = $("metric");
 const countEl = $("citation-count");
 const deltaEl = $("citation-delta");
-const hIndexEl = $("h-index");
-const i10IndexEl = $("i10-index");
 const newRowBtn = $("open-new");
 const newTitleEl = $("new-title");
 const newSubEl = $("new-sub");
@@ -38,7 +36,8 @@ const settingsSheet = $("settings-sheet");
 const settingsTitleEl = $("settings-title");
 const settingsSubEl = $("settings-sub");
 const settingsForm = $("settings-form");
-const settingsStatusEl = $("settings-status");
+const saveSettingsBtn = $("save-settings");
+const scholarHintEl = $("scholar-hint");
 const inputScholar = $("input-scholar");
 const inputName = $("input-name");
 const inputHome = $("input-home");
@@ -179,9 +178,6 @@ function render() {
   deltaEl.hidden = !delta;
   deltaEl.textContent = delta;
   deltaEl.title = delta ? `${plural(totalDelta, "new citation")} since ${formatWhen(seen.time)}` : "";
-
-  hIndexEl.textContent = snap && snap.hIndex != null ? numberFormat.format(snap.hIndex) : "—";
-  i10IndexEl.textContent = snap && snap.i10Index != null ? numberFormat.format(snap.i10Index) : "—";
 
   // New citations entry.
   let rowState;
@@ -402,9 +398,12 @@ newRowBtn.addEventListener("click", () => {
 
 // ---- Settings sheet ----
 
-function setFormStatus(text, isError = false) {
-  settingsStatusEl.textContent = text;
-  settingsStatusEl.classList.toggle("is-error", isError);
+// Problems with the Scholar field replace its hint, right next to the input.
+function setScholarError(message) {
+  scholarHintEl.textContent = `· ${message || "URL or user ID"}`;
+  scholarHintEl.classList.toggle("is-error", Boolean(message));
+  if (message) inputScholar.setAttribute("aria-invalid", "true");
+  else inputScholar.removeAttribute("aria-invalid");
 }
 
 async function openSettings() {
@@ -417,27 +416,27 @@ async function openSettings() {
     ? "Stored only in this browser."
     : "Paste your Scholar profile link to start.";
   inputScholar.value = configured ? buildProfileUrl(state) : "";
-  inputScholar.removeAttribute("aria-invalid");
+  setScholarError("");
   inputName.value = state.displayName || "";
   inputName.placeholder = (snap && snap.name) || "Your name";
   inputHome.value = state.homepageUrl || "";
-  setFormStatus("");
+  saveSettingsBtn.textContent = "Save";
+  saveSettingsBtn.classList.remove("is-done");
 
   openSheet(settingsSheet, configured ? null : inputScholar);
 }
 
 $("open-settings").addEventListener("click", openSettings);
+inputScholar.addEventListener("input", () => setScholarError(""));
 
 settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const parsed = parseScholarInput(inputScholar.value);
   if (!parsed) {
-    inputScholar.setAttribute("aria-invalid", "true");
-    setFormStatus("Enter a valid Scholar URL or user ID", true);
+    setScholarError("not a valid URL or ID");
     inputScholar.focus();
     return;
   }
-  inputScholar.removeAttribute("aria-invalid");
 
   // A different profile starts from scratch: the old snapshot and seen counts belong to someone else.
   const profileChanged = parsed.userId !== state.scholarUserId;
@@ -453,7 +452,8 @@ settingsForm.addEventListener("submit", async (event) => {
   await loadState();
   render();
   await updateBadge();
-  setFormStatus("Saved");
+  saveSettingsBtn.textContent = "Saved";
+  saveSettingsBtn.classList.add("is-done");
 
   setTimeout(() => {
     closeSheet();
