@@ -22,6 +22,8 @@
       --accent-tint: rgba(155, 183, 212, 0.20);
       --on-accent: #FFFFFF;
       --hero-glow: rgba(155, 183, 212, 0.13);
+      --count-from: #4C9A6C;                   /* headline number gradient: sage → mint */
+      --count-to: #7DBE93;
       --fresh: #3F7A4C;                        /* new-citation text, darkened morandi green */
       --fresh-tint: rgba(143, 186, 149, 0.22);    /* morandi green #8FBA95 */
       --fresh-ring: rgba(143, 186, 149, 0.60);
@@ -51,6 +53,8 @@
         --accent-tint: rgba(155, 183, 212, 0.14);
         --on-accent: #16202A;
         --hero-glow: rgba(155, 183, 212, 0.07);
+        --count-from: #86CC9C;
+        --count-to: #B2E2C0;
         --fresh: #A6D1AC;
         --fresh-tint: rgba(143, 186, 149, 0.16);
         --fresh-ring: rgba(143, 186, 149, 0.40);
@@ -158,12 +162,15 @@
     .metric { margin-top: 10px; text-align: center; }
     .metric-value { position: relative; display: inline-block; }
     .count {
-      font: 200 56px/1 var(--font-display);
+      font: 250 56px/1 var(--font-display);
       letter-spacing: -1.5px;
-      color: var(--accent);
+      background: linear-gradient(120deg, var(--count-from) 10%, var(--count-to) 90%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
     .count.is-long { font-size: 46px; }
-    .count.is-empty { color: var(--text-3); }
+    .count.is-empty { background: none; color: var(--text-3); }
     /* Ticker-style increase beside the total; absolutely placed so the total stays centered. */
     .delta {
       position: absolute;
