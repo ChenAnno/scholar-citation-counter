@@ -1,359 +1,589 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>Scholar Rocket</title>
   <style>
     :root {
+      color-scheme: light dark;
+
       --morandi-blue: #9BB7D4;
       --morandi-deep-blue: #4A6B82;
-      --morandi-grey: #A1A9AD;
-      --morandi-green: #8FBA95;
-      --bg-color: #F4F4F2;
+
+      --bg: #F4F4F2;
+      --surface: #FFFFFF;
+      --surface-sunken: #F7F7F5;
+      --line: rgba(40, 56, 70, 0.09);
+      --text: #2E3A43;
+      --text-2: #66737C;
+      --text-3: #9AA3A9;
+      --accent: var(--morandi-deep-blue);
+      --accent-soft: var(--morandi-blue);
+      --accent-tint: rgba(155, 183, 212, 0.20);
+      --on-accent: #FFFFFF;
+      --hero-glow: rgba(155, 183, 212, 0.13);
+      --fresh: #3F7A4C;                        /* new-citation text, darkened morandi green */
+      --fresh-tint: rgba(143, 186, 149, 0.22);    /* morandi green #8FBA95 */
+      --fresh-ring: rgba(143, 186, 149, 0.60);
+      --warn: #9A6420;
+      --danger: #B4545A;
+      --shadow: 0 1px 2px rgba(40, 56, 70, 0.05), 0 6px 18px rgba(40, 56, 70, 0.06);
+      --sheet-shadow: 0 -6px 24px rgba(40, 56, 70, 0.12);
+      --scrim: rgba(30, 40, 48, 0.14);
+      --ease-sheet: cubic-bezier(0.16, 1, 0.3, 1);
+
+      --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Helvetica Neue", sans-serif;
+      --font-serif: "New York", "Iowan Old Style", Georgia, "Songti SC", serif;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #16181B;
+        --surface: #212428;
+        --surface-sunken: #1A1D20;
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #E7EAEC;
+        --text-2: #A2ACB3;
+        --text-3: #6E777E;
+        --accent: #A9C3DD;
+        --accent-soft: #6F8FAB;
+        --accent-tint: rgba(155, 183, 212, 0.14);
+        --on-accent: #16202A;
+        --hero-glow: rgba(155, 183, 212, 0.07);
+        --fresh: #A6D1AC;
+        --fresh-tint: rgba(143, 186, 149, 0.16);
+        --fresh-ring: rgba(143, 186, 149, 0.40);
+        --warn: #E0B070;
+        --danger: #E39A9E;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 6px 18px rgba(0, 0, 0, 0.22);
+        --sheet-shadow: 0 -6px 24px rgba(0, 0, 0, 0.40);
+        --scrim: rgba(0, 0, 0, 0.40);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; overflow: hidden; }
     body {
-      font-family: "SF Pro Display", "-apple-system", ".SFNSDisplay", "Helvetica Neue", "Inter", sans-serif;
+      width: 300px;
+      height: 360px;
+      background: var(--bg);
+      color: var(--text);
+      font: 12px/1.4 var(--font-ui);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      width: 220px;
-      height: 270px;
-      margin: 0;
     }
+    button { font: inherit; color: inherit; }
+    svg { display: block; flex: none; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
-    /* App container: clips the slide-up drawers so they stay in bounds. */
-    #app-container {
-      position: relative;
-      width: 100%;
+    .icon {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .icon-sm { width: 11px; height: 11px; stroke-width: 2; }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text-3);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, opacity 0.2s;
+    }
+    .icon-btn:hover { background: var(--accent-tint); color: var(--accent); }
+
+    /* App container: clips the slide-up sheets so they stay in bounds. */
+    .app { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+    /* ========================================= */
+    /* Main view                                  */
+    /* ========================================= */
+    .main {
       height: 100%;
-      background-color: var(--bg-color);
-      overflow: hidden;
+      padding: 12px;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      transform-origin: 50% 0;
+      transition: transform 0.45s var(--ease-sheet), opacity 0.45s;
     }
+    .app.has-sheet .main { transform: scale(0.94); opacity: 0.6; }
 
-    /* Subtle settings (gear) button, top-right corner. */
-    #open-settings {
-      position: absolute;
-      top: 10px;
-      right: 12px;
-      background: none;
-      border: none;
-      padding: 0;
-      font-size: 14px;
-      line-height: 1;
-      color: var(--morandi-grey);
-      opacity: 0.55;
-      cursor: pointer;
-      z-index: 5;
-      transition: opacity 0.2s, transform 0.2s;
-    }
-    #open-settings:hover { opacity: 1; transform: rotate(45deg); }
-
-    /* Main card */
     .card {
-      background: white;
-      width: 190px;
-      height: 240px;
-      border-radius: 28px;
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      position: relative;
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 12px 24px rgba(0,0,0,0.04);
-      padding: 0 10px;
-      box-sizing: border-box;
+      padding: 18px 16px 14px;
+      background: linear-gradient(180deg, var(--hero-glow), transparent 55%), var(--surface);
     }
+    .hero-settings { position: absolute; top: 8px; right: 8px; }
+    .hero-settings:hover .icon { transform: rotate(45deg); }
+    .hero-settings .icon { transition: transform 0.3s; }
 
-    .home-link {
-      font-family: "New York", "Georgia", serif;
-      font-size: 13px;
-      font-weight: 600;
-      font-style: normal;
-      color: var(--morandi-deep-blue);
-      letter-spacing: 0.5px;
-      text-decoration: none;
-      margin-bottom: 6px;
-      border-bottom: 1px solid rgba(74, 107, 130, 0.15);
-      padding-bottom: 2px;
-      transition: opacity 0.2s, border-color 0.2s;
-    }
-    .home-link:hover { opacity: 0.8; border-bottom-color: var(--morandi-deep-blue); }
-
-    #citation-count {
-      font-family: "SF Pro Display", -apple-system, sans-serif;
-      font-size: 58px;
-      font-weight: 100;
-      color: var(--morandi-blue);
-      line-height: 0.95;
-      margin-top: 4px;
-      letter-spacing: -1.5px;
-    }
-
-    .scholar-link {
-      font-size: 11px;
-      font-weight: 400;
-      color: var(--morandi-blue);
-      text-decoration: none;
-      margin-top: 12px;
-      letter-spacing: 0.3px;
-      border-bottom: 1px solid rgba(155, 183, 212, 0.2);
-      padding-bottom: 1px;
-    }
-
-    #status {
-      font-family: "SF Mono", "Menlo", monospace;
-      font-size: 9px;
-      color: #CCC;
-      margin-top: 14px;
-      height: 12px;
-      letter-spacing: 0.5px;
-    }
-
-    #refresh {
-      font-family: "SF Pro Text", -apple-system, sans-serif;
-      margin-top: 14px;
-      background: var(--morandi-blue);
-      color: white;
-      border: none;
-      width: 124px;
-      padding: 8px 0;
-      border-radius: 16px;
-      font-size: 11px;
-      font-weight: 500;
+    .profile-name {
+      max-width: 188px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: 600 15px/1.35 var(--font-serif);
       letter-spacing: 0.2px;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(155, 183, 212, 0.2);
-      transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
     }
-    #refresh:hover { background: #8AA7C4; transform: translateY(-1px); }
-    #refresh:active { transform: translateY(0); }
+    .profile-name[href]:hover { border-bottom-color: currentColor; }
 
-    #view-new {
-      background: none;
-      border: none;
-      font-family: inherit;
-      font-size: 10px;
-      font-weight: 400;
-      color: var(--morandi-green);
-      letter-spacing: 0.3px;
-      cursor: pointer;
-      margin-top: 16px;
-      padding: 0;
-      padding-bottom: 1px;
-      border-bottom: 1px solid rgba(143, 186, 149, 0.2);
-      transition: opacity 0.2s, border-color 0.2s;
+    .metric { margin-top: 10px; text-align: center; }
+    .metric-value { position: relative; display: inline-block; }
+    .count {
+      font: 200 56px/1 var(--font-display);
+      letter-spacing: -1.5px;
+      color: var(--accent);
     }
-    #view-new:hover { opacity: 0.8; border-bottom-color: var(--morandi-green); }
-
-    /* ========================================= */
-    /* Slide-up overlays (iOS-style drawers)      */
-    /* ========================================= */
-    .overlay-view {
+    .count.is-long { font-size: 46px; }
+    .count.is-empty { color: var(--text-3); }
+    /* Ticker-style increase beside the total; absolutely placed so the total stays centered. */
+    .delta {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(8px); /* frosted-glass background */
-      -webkit-backdrop-filter: blur(8px);
-      display: flex;
-      flex-direction: column;
-      z-index: 10;
-
-      /* Sits below the screen by default, slides up when active. */
-      transform: translateY(100%);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .overlay-view.active { transform: translateY(0); }
-
-    .overlay-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 18px 16px 12px 16px;
-      border-bottom: 1px solid rgba(0,0,0,0.04);
-    }
-    .overlay-title {
+      left: 100%;
+      top: 2px;
+      margin-left: 6px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--fresh-tint);
+      color: var(--fresh);
       font-size: 12px;
       font-weight: 600;
-      color: var(--morandi-deep-blue);
-      letter-spacing: 0.3px;
+      line-height: 16px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
-    .close-overlay {
-      background: none; border: none; padding: 0;
-      font-size: 18px; color: var(--morandi-grey);
-      cursor: pointer; line-height: 1; transition: color 0.2s;
-    }
-    .close-overlay:hover { color: #555; }
-
-    /* List area with elegant scrolling. */
-    #paper-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 16px;
-      box-sizing: border-box;
-    }
-    /* Hide scrollbar but keep scrolling (Mac aesthetic). */
-    #paper-list::-webkit-scrollbar { display: none; }
-
-    .paper-item {
-      margin-bottom: 14px;
-      padding-bottom: 14px;
-      border-bottom: 1px dashed rgba(0,0,0,0.06);
-    }
-    .paper-item:last-child { border-bottom: none; }
-
-    .paper-badge {
-      display: inline-block;
-      background: var(--morandi-green);
-      color: white;
-      font-size: 9px;
+    .metric.is-crowded .metric-value { display: flex; flex-direction: column; align-items: center; }
+    .metric.is-crowded .delta { position: static; margin: 6px 0 0; }
+    .metric-label {
+      margin-top: 7px;
+      font-size: 10px;
       font-weight: 600;
-      padding: 3px 7px;
-      border-radius: 10px;
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--text-2);
     }
-    .paper-title {
+
+    .substats {
+      width: 100%;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .substat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .substat + .substat { border-left: 1px solid var(--line); }
+    .substat-value {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .substat-label { font-size: 10px; color: var(--text-2); letter-spacing: 0.3px; }
+
+    /* New citations entry */
+    .new-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      padding: 11px 10px 11px 11px;
+      border: 0;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .new-row:hover { transform: translateY(-1px); }
+    .new-row:active { transform: none; }
+    .new-row[data-state="fresh"] { box-shadow: var(--shadow), inset 0 0 0 1px var(--fresh-ring); }
+    .new-row[data-state="waiting"] { cursor: default; }
+    .new-row[data-state="waiting"]:hover { transform: none; }
+
+    .new-icon {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: var(--accent-tint);
+      color: var(--accent);
+    }
+    .new-icon .icon { display: none; }
+    .new-row[data-state="fresh"] .i-fresh,
+    .new-row[data-state="quiet"] .i-quiet,
+    .new-row[data-state="waiting"] .i-waiting,
+    .new-row[data-state="setup"] .i-setup { display: block; }
+    .new-row[data-state="fresh"] .new-icon { background: var(--fresh-tint); color: var(--fresh); }
+    .new-row[data-state="waiting"] .new-icon { color: var(--text-3); }
+
+    .new-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .new-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .new-sub {
       font-size: 11px;
-      font-weight: 400;
-      color: #555;
+      color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .new-row[data-state="fresh"] .new-sub { color: var(--fresh); font-weight: 500; }
+    .chevron { color: var(--text-3); }
+    .new-row[data-state="waiting"] .chevron { visibility: hidden; }
+
+    /* Footer: sync status + Scholar link */
+    .footer { display: flex; align-items: center; gap: 4px; min-height: 28px; padding-right: 6px; }
+    .refresh.is-cooling { opacity: 0.55; }
+    .refresh.is-spinning { color: var(--accent); }
+    .refresh.is-spinning .icon { animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status {
+      flex: 1;
+      min-width: 0;
+      font-size: 11px;
+      color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status.is-warn { color: var(--warn); }
+    .status a {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      color: inherit;
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .status a:hover { text-decoration: underline; }
+
+    .scholar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .scholar-link:hover { text-decoration: underline; }
+    .scholar-link:not([href]) { color: var(--text-3); pointer-events: none; }
+
+    /* ========================================= */
+    /* Slide-up sheets (iOS style)                */
+    /* ========================================= */
+    .scrim {
+      position: absolute;
+      inset: 0;
+      background: var(--scrim);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .app.has-sheet .scrim { opacity: 1; pointer-events: auto; }
+
+    .sheet {
+      position: absolute;
+      top: 14px;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 18px 18px 0 0;
+      box-shadow: var(--sheet-shadow);
+      /* Sits below the popup until opened; hidden so it cannot take focus. */
+      visibility: hidden;
+      transform: translateY(102%);
+      transition: transform 0.45s var(--ease-sheet), visibility 0s 0.45s;
+    }
+    .sheet.is-open {
+      visibility: visible;
+      transform: none;
+      transition: transform 0.45s var(--ease-sheet), visibility 0s;
+    }
+    /* Grabber */
+    .sheet::before {
+      content: "";
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 32px;
+      height: 4px;
+      margin-left: -16px;
+      border-radius: 2px;
+      background: var(--text-3);
+      opacity: 0.35;
+    }
+
+    .sheet-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 18px 10px 12px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sheet-heading { flex: 1; min-width: 0; }
+    .sheet-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.1px; }
+    .sheet-sub { margin: 2px 0 0; font-size: 11px; color: var(--text-2); text-wrap: balance; }
+    .sheet-close { margin-top: -3px; }
+    .sheet-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+
+    /* New citations list */
+    .paper-list { padding: 6px 6px 14px; }
+    .paper {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      color: inherit;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    a.paper:hover { background: var(--surface-sunken); }
+    .paper-delta {
+      flex: none;
+      min-width: 38px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--fresh-tint);
+      color: var(--fresh);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 16px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .paper-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .paper-title {
+      font-size: 12px;
       line-height: 1.4;
+      color: var(--text);
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .empty-state {
+    .paper-meta { font-size: 10.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .paper-go { margin-top: 3px; color: var(--text-3); opacity: 0; transition: opacity 0.15s; }
+    a.paper:hover .paper-go { opacity: 1; }
+    .list-note { margin: 10px 12px 0; font-size: 10.5px; color: var(--text-2); text-align: center; text-wrap: balance; }
+
+    .empty {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 0 30px 18px;
       text-align: center;
-      color: var(--morandi-grey);
-      font-size: 11px;
-      margin-top: 50px;
-      font-style: italic;
     }
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      margin-bottom: 8px;
+      padding: 12px;
+      border-radius: 50%;
+      background: var(--accent-tint);
+      color: var(--accent);
+    }
+    .empty-title { margin: 0; font-size: 13px; font-weight: 600; }
+    .empty-sub { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-2); text-wrap: balance; }
 
-    /* ========================================= */
-    /* Settings form                              */
-    /* ========================================= */
-    #settings-form {
-      flex: 1;
-      overflow-y: auto;
-      padding: 14px 16px;
-      box-sizing: border-box;
-    }
-    #settings-form::-webkit-scrollbar { display: none; }
-
-    .field { margin-bottom: 12px; }
-    .field label {
-      display: block;
-      font-size: 9.5px;
-      font-weight: 600;
-      color: var(--morandi-deep-blue);
-      letter-spacing: 0.3px;
-      margin-bottom: 4px;
-    }
-    .field .hint {
-      font-weight: 400;
-      color: var(--morandi-grey);
-    }
+    /* Settings form */
+    .settings-form { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 11px; font-weight: 600; color: var(--text); }
+    .field-label .hint { font-weight: 400; color: var(--text-2); }
     .field input {
       width: 100%;
-      box-sizing: border-box;
-      font-family: inherit;
-      font-size: 11px;
-      color: #555;
-      background: #FAFAF9;
-      border: 1px solid rgba(0,0,0,0.08);
+      padding: 8px 10px;
+      font: 12px var(--font-ui);
+      color: var(--text);
+      background: var(--surface-sunken);
+      border: 1px solid var(--line);
       border-radius: 10px;
-      padding: 7px 9px;
       outline: none;
-      transition: border-color 0.2s, background 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
+    .field input::placeholder { color: var(--text-3); }
     .field input:focus {
-      border-color: var(--morandi-blue);
-      background: white;
+      border-color: var(--accent-soft);
+      background: var(--surface);
+      box-shadow: 0 0 0 3px var(--accent-tint);
     }
+    .field input[aria-invalid="true"] { border-color: var(--danger); }
 
-    #save-settings {
-      width: 100%;
-      margin-top: 4px;
-      background: var(--morandi-deep-blue);
-      color: white;
-      border: none;
+    .primary-btn {
+      margin-top: 2px;
       padding: 9px 0;
-      border-radius: 12px;
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.2px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s, transform 0.2s;
+      transition: filter 0.2s, transform 0.2s;
     }
-    #save-settings:hover { background: #3C5A6E; transform: translateY(-1px); }
-    #save-settings:active { transform: translateY(0); }
+    .primary-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .primary-btn:active { transform: none; }
 
-    #settings-status {
-      text-align: center;
-      font-size: 9px;
-      color: var(--morandi-green);
-      height: 12px;
-      margin-top: 8px;
-      letter-spacing: 0.3px;
+    .form-status { min-height: 15px; margin: -2px 0 0; font-size: 11px; text-align: center; color: var(--fresh); }
+    .form-status.is-error { color: var(--danger); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }
     }
   </style>
 </head>
 <body>
-  <!-- Container clips the slide range. -->
-  <div id="app-container">
-
-    <button id="open-settings" title="Settings">&#9881;</button>
+  <div id="app" class="app">
 
     <!-- Main view -->
-    <div class="card">
-      <a href="#" target="_blank" class="home-link" id="home-link">My Profile</a>
-      <div id="citation-count">--</div>
-      <a href="#" target="_blank" class="scholar-link" id="scholar-link">My Scholar</a>
-      <div id="status">...</div>
-      <button id="refresh">Sync Now</button>
-      <button id="view-new">New Papers</button>
-    </div>
+    <main id="main" class="main">
+      <section class="hero card">
+        <button id="open-settings" class="icon-btn hero-settings" type="button" title="Settings" aria-label="Settings">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
 
-    <!-- New papers drawer -->
-    <div id="overlay-view" class="overlay-view">
-      <div class="overlay-header">
-        <span class="overlay-title">Recent Citations</span>
-        <button id="close-overlay" class="close-overlay">&times;</button>
-      </div>
-      <div id="paper-list">
+        <a id="profile-name" class="profile-name" target="_blank" rel="noopener">Scholar Rocket</a>
+
+        <div id="metric" class="metric">
+          <div class="metric-value">
+            <span id="citation-count" class="count">—</span>
+            <span id="citation-delta" class="delta" hidden></span>
+          </div>
+          <div class="metric-label">Citations</div>
+        </div>
+
+        <div class="substats">
+          <div class="substat">
+            <span id="h-index" class="substat-value">—</span>
+            <span class="substat-label">h-index</span>
+          </div>
+          <div class="substat">
+            <span id="i10-index" class="substat-value">—</span>
+            <span class="substat-label">i10-index</span>
+          </div>
+        </div>
+      </section>
+
+      <button id="open-new" class="new-row card" type="button" data-state="waiting">
+        <span class="new-icon" aria-hidden="true">
+          <svg class="icon i-fresh" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <svg class="icon i-quiet" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          <svg class="icon i-waiting" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <svg class="icon i-setup" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </span>
+        <span class="new-text">
+          <span id="new-title" class="new-title">New citations</span>
+          <span id="new-sub" class="new-sub"></span>
+        </span>
+        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+
+      <footer class="footer">
+        <button id="refresh" class="icon-btn refresh" type="button" aria-label="Sync now">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        </button>
+        <span id="status" class="status" role="status"></span>
+        <a id="scholar-link" class="scholar-link" target="_blank" rel="noopener">
+          Scholar
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+        </a>
+      </footer>
+    </main>
+
+    <div id="scrim" class="scrim"></div>
+
+    <!-- New citations sheet -->
+    <section id="new-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="new-sheet-title">
+      <header class="sheet-header">
+        <div class="sheet-heading">
+          <h2 id="new-sheet-title" class="sheet-title">New citations</h2>
+          <p id="new-sheet-sub" class="sheet-sub"></p>
+        </div>
+        <button class="icon-btn sheet-close" type="button" data-close aria-label="Close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+      <div id="paper-list" class="sheet-body paper-list">
         <!-- Paper list injected dynamically. -->
       </div>
-    </div>
+    </section>
 
-    <!-- Settings drawer -->
-    <div id="settings-view" class="overlay-view">
-      <div class="overlay-header">
-        <span class="overlay-title">Settings</span>
-        <button id="close-settings" class="close-overlay">&times;</button>
-      </div>
-      <div id="settings-form">
-        <div class="field">
-          <label for="input-scholar">Google Scholar profile <span class="hint">(URL or user ID)</span></label>
-          <input id="input-scholar" type="text" placeholder="https://scholar.google.com/citations?user=XXXX">
+    <!-- Settings sheet -->
+    <section id="settings-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="sheet-header">
+        <div class="sheet-heading">
+          <h2 id="settings-title" class="sheet-title">Settings</h2>
+          <p id="settings-sub" class="sheet-sub"></p>
         </div>
-        <div class="field">
-          <label for="input-name">Display name <span class="hint">(optional)</span></label>
+        <button class="icon-btn sheet-close" type="button" data-close aria-label="Close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+      <form id="settings-form" class="sheet-body settings-form" novalidate autocomplete="off">
+        <label class="field">
+          <span class="field-label">Google Scholar profile <span class="hint">· URL or user ID</span></span>
+          <input id="input-scholar" type="text" spellcheck="false" placeholder="https://scholar.google.com/citations?user=…">
+        </label>
+        <label class="field">
+          <span class="field-label">Display name <span class="hint">· optional</span></span>
           <input id="input-name" type="text" placeholder="Your name">
-        </div>
-        <div class="field">
-          <label for="input-home">Homepage URL <span class="hint">(optional)</span></label>
-          <input id="input-home" type="text" placeholder="https://your-site.com">
-        </div>
-        <button id="save-settings">Save</button>
-        <div id="settings-status"></div>
-      </div>
-    </div>
+        </label>
+        <label class="field">
+          <span class="field-label">Homepage <span class="hint">· optional</span></span>
+          <input id="input-home" type="text" spellcheck="false" placeholder="https://your-site.com">
+        </label>
+        <button type="submit" class="primary-btn">Save</button>
+        <p id="settings-status" class="form-status" role="status"></p>
+      </form>
+    </section>
+
+    <template id="tpl-arrow"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></template>
+    <template id="tpl-check"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template>
 
   </div>
+  <script src="shared.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

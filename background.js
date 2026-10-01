@@ -1,119 +1,184 @@
-// Default Scholar domain. Users in mainland China may prefer "scholar.google.com.hk".
-const DEFAULT_DOMAIN = "scholar.google.com";
-const DEFAULT_LANG = "en";
+importScripts("shared.js");
 
-// Build the Scholar profile URL from the user's saved configuration.
-// Returns null when the extension has not been configured yet.
-async function buildScholarUrl() {
-  const cfg = await chrome.storage.local.get(["scholarUserId", "scholarLang", "scholarDomain"]);
-  if (!cfg.scholarUserId) return null;
+const ALARM_NAME = "checkUpdate";
+const SYNC_PERIOD_MIN = 360;   // background sync every 6 hours
+const PAGE_SIZE = 100;         // the largest page Scholar serves
+const MAX_PAGES = 10;          // tracks up to 1,000 papers
+const PAGE_DELAY_MS = 1000;    // pause between pages to stay polite to Scholar
 
-  const domain = cfg.scholarDomain || DEFAULT_DOMAIN;
-  const lang = cfg.scholarLang || DEFAULT_LANG;
-  return `https://${domain}/citations?user=${encodeURIComponent(cfg.scholarUserId)}&hl=${encodeURIComponent(lang)}`;
+// Storage keys from v1.7 and earlier (title-keyed top-15 snapshot), dropped on update.
+const LEGACY_KEYS = ["citationCount", "lastRefreshTime", "savedPapersMap", "newPapers"];
+
+// ---- Parsing ----
+// Service workers have no DOMParser, so the Scholar page is read with regexes.
+
+const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+function decodeEntities(text) {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+    if (entity[0] === "#") {
+      const hex = entity[1] === "x" || entity[1] === "X";
+      const code = parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+    return NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+  });
 }
 
-async function fetchCitations() {
-  try {
-    const scholarUrl = await buildScholarUrl();
-    if (!scholarUrl) {
-      // Not configured yet — prompt the user to open the popup and set their profile.
-      chrome.action.setBadgeText({ text: "?" });
-      chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
-      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#A1A9AD" });
-      return { success: false, error: "NO_CONFIG" };
-    }
+function cleanText(html) {
+  return decodeEntities(html.replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+}
 
-    const response = await fetch(scholarUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' }
+function toInt(text) {
+  const digits = (text || "").replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+// Profile name plus the "All" column of the stats table: citations, h-index, i10-index.
+function parseProfile(html) {
+  const cells = [...html.matchAll(/class="gsc_rsb_std"[^>]*>([^<]*)</g)].map((m) => toInt(m[1]));
+  if (cells.length === 0) return null;
+
+  const name = html.match(/id="gsc_prf_in"[^>]*>([\s\S]*?)<\/div>/);
+  return {
+    name: name ? cleanText(name[1]) : "",
+    total: cells[0],
+    hIndex: cells.length > 2 ? cells[2] : null,
+    i10Index: cells.length > 4 ? cells[4] : null
+  };
+}
+
+// One entry per row of the papers table. Rows are split first so a regex can never
+// match across two papers and misalign titles and counts.
+function parsePapers(html) {
+  const papers = [];
+  for (const segment of html.split(/<tr[^>]*class="gsc_a_tr"[^>]*>/).slice(1)) {
+    const row = segment.split("</tr>")[0];
+    const titleMatch = row.match(/class="gsc_a_at"[^>]*>([\s\S]*?)<\/a>/);
+    if (!titleMatch) continue;
+
+    const title = cleanText(titleMatch[1]);
+    const idMatch = row.match(/citation_for_view=([^"&]+)/);
+    const citesMatch = row.match(/class="gsc_a_ac\b[^"]*"[^>]*>([^<]*)</);
+    const citesIdMatch = row.match(/[?&;]cites=([\d,]+)/);
+    const yearMatch = row.match(/class="gsc_a_h\b[^"]*"[^>]*>(\d{4})</);
+
+    papers.push({
+      // Scholar's per-paper ID is stable across title edits; the title is only a fallback.
+      id: idMatch ? idMatch[1] : `title:${title.toLowerCase()}`,
+      title,
+      cites: citesMatch ? toInt(citesMatch[1]) : 0,
+      citesId: citesIdMatch ? citesIdMatch[1] : "",
+      year: yearMatch ? yearMatch[1] : ""
     });
+  }
+  return papers;
+}
 
-    if (response.url.includes("google.com/sorry")) {
-      chrome.action.setBadgeText({ text: "!" });
-      chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
-      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#C28A3D" });
-      return { success: false, error: "CAPTCHA", url: response.url };
-    }
+// ---- Sync ----
 
-    const text = await response.text();
+let inflight = null;
 
-    // 1. Parse the total citation count.
-    const match = text.match(/class="gsc_rsb_std">(\d+)</);
+// At most one sync runs at a time; concurrent callers share its result.
+function sync() {
+  if (!inflight) inflight = runSync().finally(() => { inflight = null; });
+  return inflight;
+}
 
-    // 2. Safe parsing: split the page by paper table rows (tr) to avoid
-    //    regex matching across rows and producing misaligned data.
-    const rows = text.split('<tr class="gsc_a_tr">').slice(1);
-    let currentPapersMap = {};
-    let count = 0;
+async function runSync() {
+  const cfg = await chrome.storage.local.get(CONFIG_KEYS);
+  if (!cfg.scholarUserId) {
+    // Not configured yet: prompt the user to open the popup and set their profile.
+    await updateBadge();
+    return { success: false, error: "NO_CONFIG" };
+  }
 
-    for (let row of rows) {
-      if (count >= 15) break; // Look at the first 15 papers.
+  try {
+    let profile = null;
+    const papers = {};
 
-      // Extract the title.
-      const titleMatch = row.match(/class="gsc_a_at">([^<]+)<\/a>/);
-      if (!titleMatch) continue;
-      const title = titleMatch[1].trim();
+    // Read every page of the profile, so a paper's earlier count is always known and a
+    // paper moving up the citation ranking is never mistaken for new citations.
+    for (let page = 0; page < MAX_PAGES; page++) {
+      if (page > 0) await new Promise((resolve) => setTimeout(resolve, PAGE_DELAY_MS));
 
-      // Extract the citation number (default to 0 if the paper has none or no match).
-      const citeMatch = row.match(/class="gsc_a_ac[^>]*>(\d*)</);
-      const citeCount = (citeMatch && citeMatch[1]) ? parseInt(citeMatch[1]) : 0;
-
-      currentPapersMap[title] = citeCount;
-      count++;
-    }
-
-    if (match && match[1]) {
-      const totalCount = match[1];
-
-      // Compare against the previously saved snapshot to detect new citations.
-      const localData = await chrome.storage.local.get(['savedPapersMap', 'newPapers']);
-      let newPapersList = [];
-
-      if (localData.savedPapersMap) {
-        for (let title in currentPapersMap) {
-          const currentVal = currentPapersMap[title];
-          const oldVal = localData.savedPapersMap[title];
-
-          if (oldVal === undefined) {
-            // Newly listed paper.
-            if (currentVal > 0) {
-              newPapersList.push({ title: title, diff: currentVal });
-            }
-          } else if (currentVal > oldVal) {
-            // Existing paper gained citations.
-            newPapersList.push({ title: title, diff: (currentVal - oldVal) });
-          }
-        }
-      }
-
-      // Persistence: if this run found new citations, update the list; otherwise
-      // keep the last recorded list so it is not overwritten with empty data.
-      let finalNewPapers = newPapersList.length > 0 ? newPapersList : (localData.newPapers || []);
-
-      chrome.storage.local.set({
-        citationCount: totalCount,
-        lastRefreshTime: Date.now(),
-        savedPapersMap: currentPapersMap,
-        newPapers: finalNewPapers
+      const url = buildProfileUrl(cfg, { cstart: page * PAGE_SIZE, pagesize: PAGE_SIZE });
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' }
       });
 
-      chrome.action.setBadgeText({ text: totalCount });
-      chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] }); // transparent — no pill
-      if (chrome.action.setBadgeTextColor) {
-        chrome.action.setBadgeTextColor({ color: "#4A6B82" }); // thin morandi deep-blue number
+      if (response.url.includes("google.com/sorry") || response.status === 429) {
+        return fail("CAPTCHA", response.url);
       }
-      return { success: true, count: totalCount };
+      if (!response.ok) return fail("HTTP", url, `HTTP ${response.status}`);
+
+      const html = await response.text();
+      if (page === 0) {
+        profile = parseProfile(html);
+        if (!profile) return fail("PARSE", url);
+      }
+
+      const rows = parsePapers(html);
+      let added = 0;
+      for (const { id, ...paper } of rows) {
+        if (!(id in papers)) added++;
+        papers[id] = paper;
+      }
+      // A short page is the last one. A page with nothing new means Scholar ignored cstart.
+      if (rows.length < PAGE_SIZE || added === 0) break;
     }
-    return { success: false, error: "Err" };
+
+    const snapshot = { userId: cfg.scholarUserId, time: Date.now(), ...profile, papers };
+    const update = { snapshot };
+
+    // First sync for this profile: start the New citations list from here, so it does not
+    // report the whole existing record as new.
+    const { seen } = await chrome.storage.local.get("seen");
+    if (!seen || seen.userId !== snapshot.userId) update.seen = toSeen(snapshot, snapshot.time);
+
+    await chrome.storage.local.set(update);
+    await chrome.storage.local.remove("lastError");
+    await updateBadge();
+    return { success: true, count: snapshot.total };
   } catch (e) {
-    return { success: false, error: e.message };
+    return fail("NETWORK", null, e.message);
+  }
+}
+
+// Records why the latest sync failed so the popup can explain it. The previous snapshot is kept.
+async function fail(code, url, detail = null) {
+  await chrome.storage.local.set({ lastError: { code, url, detail, time: Date.now() } });
+  await updateBadge();
+  return { success: false, error: code, url };
+}
+
+// ---- Lifecycle ----
+
+async function ensureAlarm() {
+  // Creating an alarm that already exists restarts its countdown. This worker starts many
+  // times a day, so only create the alarm when it is missing.
+  if (!(await chrome.alarms.get(ALARM_NAME))) {
+    await chrome.alarms.create(ALARM_NAME, { periodInMinutes: SYNC_PERIOD_MIN });
   }
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "GET_DATA") { fetchCitations().then(sendResponse); return true; }
+  if (msg.type === "SYNC") { sync().then(sendResponse); return true; }
 });
 
-chrome.alarms.create("checkUpdate", { periodInMinutes: 360 });
-chrome.alarms.onAlarm.addListener(fetchCitations);
-chrome.runtime.onInstalled.addListener(fetchCitations);
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_NAME) sync();
+});
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === "update") await chrome.storage.local.remove(LEGACY_KEYS);
+  await ensureAlarm();
+  sync();
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  const { snapshot } = await chrome.storage.local.get("snapshot");
+  if (!snapshot || Date.now() - snapshot.time > SYNC_PERIOD_MIN * 60 * 1000) sync();
+});
+
+ensureAlarm();

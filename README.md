@@ -10,11 +10,12 @@ Designed with a calm, Morandi-inspired color palette and an iOS-style slide-up i
 
 ## ✨ Features
 
-- **Live citation badge** — your total citation count sits on the extension icon.
-- **New-citation tracker** — see exactly which of your papers gained citations since the last sync.
+- **Live citation badge** — your total citation count sits on the extension icon and turns green when new citations are waiting.
+- **New citations** — see exactly which papers gained citations since you last looked, with before → after counts. Click a paper to see who cited it, newest first.
+- **At a glance** — total citations with a `+N` since your last look, plus h-index and i10-index.
 - **Privacy-friendly** — everything runs locally in your browser. No accounts, no servers, no tracking. Your configuration is stored only in `chrome.storage.local`.
 - **One-time setup** — paste your Scholar profile URL on first launch and you're done.
-- **Polished UI** — frosted-glass drawers, soft shadows, and a Morandi color scheme.
+- **Polished UI** — slide-up sheets, soft shadows, a Morandi color scheme, and automatic dark mode.
 
 ## 📦 Installation
 
@@ -38,7 +39,7 @@ On first launch the popup opens the **Settings** drawer automatically. Fill in:
 | Field | Required | Description |
 |-------|----------|-------------|
 | **Google Scholar profile** | ✅ | Paste your full profile URL, e.g. `https://scholar.google.com/citations?user=XXXXXXXX`. You can also paste just the `user` ID. The language (`hl`) and domain (e.g. `scholar.google.com.hk`) are picked up automatically from the URL. |
-| **Display name** | — | The name shown at the top of the card. |
+| **Display name** | — | The name shown at the top of the card. Defaults to the name on your Scholar profile. |
 | **Homepage URL** | — | If set, your display name links to your personal site. |
 
 Click **Save** and Scholar Rocket fetches your stats.
@@ -49,20 +50,33 @@ To change any of this later, click the **⚙ gear** in the top-right corner of t
 
 Open [Google Scholar](https://scholar.google.com/), sign in, click your profile, and copy the address from the browser bar. The part that matters is `user=XXXXXXXX`.
 
+## 🆕 How "New citations" works
+
+The **New citations** list shows what changed since the last time *you opened it*:
+
+1. The first sync records your current citation counts as the starting point.
+2. Every later sync compares against the counts you last saw, so increases add up until you look.
+3. Opening **New citations** lists each paper that gained citations (and papers newly added to your profile), then marks them as seen.
+4. Open it again before anything new arrives and it tells you you're all caught up.
+
+The `+N` next to your total and the green toolbar badge follow the same rule and reset when you open the list.
+
 ## 🔄 How syncing works
 
-- Scholar Rocket refreshes automatically in the background every **6 hours**.
-- You can refresh manually with **Sync Now** (rate-limited to once per hour to stay polite to Google).
-- If Google shows a CAPTCHA, the status line offers a **Verify Identity** link — solve it once and sync again.
+- Scholar Rocket refreshes automatically in the background every **6 hours**, and when you open the popup if the data is older than that.
+- Each sync reads every page of your profile (up to 1,000 papers), so a paper moving up the citation ranking is never mistaken for new citations.
+- You can refresh manually with the **⟳** button next to the status line (once per hour to stay polite to Google).
+- If Google shows a CAPTCHA, the status line shows **Verification needed** — click it, solve the CAPTCHA, and sync again.
 
 ## 🗂️ Project Structure
 
 ```
 scholar-rocket/
 ├── manifest.json      # Extension manifest (Manifest V3)
-├── background.js      # Service worker: fetches & parses Scholar, manages the badge
-├── popup.html         # Popup markup + Morandi styling
-├── popup.js           # Popup logic: config, settings, new-papers drawer
+├── background.js      # Service worker: fetches & parses Scholar, schedules syncs
+├── shared.js          # Used by both: URLs, "what's new" comparison, badge
+├── popup.html         # Popup markup + Morandi styling (light & dark)
+├── popup.js           # Popup logic: settings, sync status, New citations sheet
 ├── icons/             # Toolbar and store icons
 │   ├── icon16.png
 │   ├── icon48.png
