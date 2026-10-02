@@ -23,6 +23,8 @@ const newTitleEl = $("new-title");
 const newSubEl = $("new-sub");
 const refreshBtn = $("refresh");
 const statusEl = $("status");
+const heroLinksEl = $("hero-links");
+const homeLinkEl = $("home-link");
 const scholarLinkEl = $("scholar-link");
 const scrim = $("scrim");
 
@@ -165,7 +167,6 @@ function render() {
   // Name: the user's choice, else the name on the Scholar profile.
   profileNameEl.textContent =
     state.displayName || (snap && snap.name) || (configured ? "My Scholar profile" : "Scholar Rocket");
-  setLink(profileNameEl, normalizeHomepage(state.homepageUrl));
 
   const total = snap ? numberFormat.format(snap.total) : "—";
   const delta = totalDelta > 0 ? `+${numberFormat.format(totalDelta)}` : "";
@@ -202,7 +203,14 @@ function render() {
   newTitleEl.textContent = title;
   newSubEl.textContent = sub;
 
+  // Homepage / Scholar buttons; each shows only when it has somewhere to go.
+  const homepage = normalizeHomepage(state.homepageUrl);
+  setLink(homeLinkEl, homepage);
+  homeLinkEl.title = homepage;
+  homeLinkEl.hidden = !homepage;
   setLink(scholarLinkEl, configured ? buildProfileUrl(state) : null);
+  scholarLinkEl.hidden = !configured;
+  heroLinksEl.hidden = homeLinkEl.hidden && scholarLinkEl.hidden;
   renderStatus();
 }
 

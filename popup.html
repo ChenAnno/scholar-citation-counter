@@ -22,8 +22,10 @@
       --accent-tint: rgba(155, 183, 212, 0.20);
       --on-accent: #FFFFFF;
       --hero-glow: rgba(155, 183, 212, 0.13);
-      --count-from: #4C9A6C;                   /* headline number gradient: sage → mint */
-      --count-to: #7DBE93;
+      --count: #509CE7;                        /* headline number: chenanno.github.io blue (#3071B5), lighter and brighter */
+      --link-ink: #3071B5;                     /* Homepage / Scholar buttons */
+      --link-tint: rgba(48, 113, 181, 0.08);
+      --link-tint-hover: rgba(48, 113, 181, 0.14);
       --fresh: #3F7A4C;                        /* new-citation text, darkened morandi green */
       --fresh-tint: rgba(143, 186, 149, 0.22);    /* morandi green #8FBA95 */
       --fresh-ring: rgba(143, 186, 149, 0.60);
@@ -53,8 +55,10 @@
         --accent-tint: rgba(155, 183, 212, 0.14);
         --on-accent: #16202A;
         --hero-glow: rgba(155, 183, 212, 0.07);
-        --count-from: #86CC9C;
-        --count-to: #B2E2C0;
+        --count: #8CBFF3;                      /* same hue, lightened for the dark card */
+        --link-ink: #8DB8E6;
+        --link-tint: rgba(126, 172, 221, 0.12);
+        --link-tint-hover: rgba(126, 172, 221, 0.20);
         --fresh: #A6D1AC;
         --fresh-tint: rgba(143, 186, 149, 0.16);
         --fresh-ring: rgba(143, 186, 149, 0.40);
@@ -70,7 +74,7 @@
     html, body { margin: 0; overflow: hidden; }
     body {
       width: 300px;
-      height: 320px;
+      height: 330px;
       background: var(--bg);
       color: var(--text);
       font: 12px/1.4 var(--font-ui);
@@ -138,7 +142,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 18px 16px 14px;
+      padding: 16px 16px 14px;
       background: linear-gradient(180deg, var(--hero-glow), transparent 55%), var(--surface);
     }
     .hero-settings { position: absolute; top: 8px; right: 8px; }
@@ -153,24 +157,17 @@
       font: 600 15px/1.35 var(--font-serif);
       letter-spacing: 0.2px;
       color: var(--accent);
-      text-decoration: none;
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.2s;
     }
-    .profile-name[href]:hover { border-bottom-color: currentColor; }
 
     .metric { margin-top: 10px; text-align: center; }
     .metric-value { position: relative; display: inline-block; }
     .count {
       font: 250 56px/1 var(--font-display);
       letter-spacing: -1.5px;
-      background: linear-gradient(120deg, var(--count-from) 10%, var(--count-to) 90%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: var(--count);
     }
     .count.is-long { font-size: 46px; }
-    .count.is-empty { background: none; color: var(--text-3); }
+    .count.is-empty { color: var(--text-3); }
     /* Ticker-style increase beside the total; absolutely placed so the total stays centered. */
     .delta {
       position: absolute;
@@ -197,6 +194,27 @@
       text-transform: uppercase;
       color: var(--text-2);
     }
+
+    .hero-links { display: flex; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; }
+    .link-btn {
+      flex: 0 1 112px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--link-tint);
+      color: var(--link-ink);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .link-btn:hover { background: var(--link-tint-hover); transform: translateY(-1px); }
+    .link-btn:active { transform: none; }
+    .link-btn .icon { width: 14px; height: 14px; }
 
     /* New citations entry */
     .new-row {
@@ -273,18 +291,6 @@
       text-decoration: none;
     }
     .status a:hover { text-decoration: underline; }
-
-    .scholar-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .scholar-link:hover { text-decoration: underline; }
-    .scholar-link:not([href]) { color: var(--text-3); pointer-events: none; }
 
     /* ========================================= */
     /* Slide-up sheets (iOS style)                */
@@ -473,7 +479,7 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
 
-        <a id="profile-name" class="profile-name" target="_blank" rel="noopener">Scholar Rocket</a>
+        <span id="profile-name" class="profile-name">Scholar Rocket</span>
 
         <div id="metric" class="metric">
           <div class="metric-value">
@@ -481,6 +487,17 @@
             <span id="citation-delta" class="delta" hidden></span>
           </div>
           <div class="metric-label">Citations</div>
+        </div>
+
+        <div id="hero-links" class="hero-links">
+          <a id="home-link" class="link-btn" target="_blank" rel="noopener">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Homepage
+          </a>
+          <a id="scholar-link" class="link-btn" target="_blank" rel="noopener" title="Google Scholar profile">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+            Scholar
+          </a>
         </div>
       </section>
 
@@ -503,10 +520,6 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         </button>
         <span id="status" class="status" role="status"></span>
-        <a id="scholar-link" class="scholar-link" target="_blank" rel="noopener">
-          Scholar
-          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-        </a>
       </footer>
     </main>
 
