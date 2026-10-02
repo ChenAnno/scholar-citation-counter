@@ -23,6 +23,7 @@ const newTitleEl = $("new-title");
 const newSubEl = $("new-sub");
 const refreshBtn = $("refresh");
 const statusEl = $("status");
+const verifyLinkEl = $("verify-link");
 const heroLinksEl = $("hero-links");
 const homeLinkEl = $("home-link");
 const scholarLinkEl = $("scholar-link");
@@ -62,14 +63,14 @@ function plural(n, word) {
   return `${numberFormat.format(n)} ${word}${n === 1 ? "" : "s"}`;
 }
 
-// "today 14:30", "yesterday 09:05", "Sep 28" or "Sep 28, 2025".
+// "today 14:30", "yesterday", "Sep 28" or "Sep 28, 2025".
 function formatWhen(ts) {
   const date = new Date(ts);
   const now = new Date();
   const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((dayStart(now) - dayStart(date)) / 86400000);
   if (days === 0) return `today ${timeFormat.format(date)}`;
-  if (days === 1) return `yesterday ${timeFormat.format(date)}`;
+  if (days === 1) return "yesterday";
   return (date.getFullYear() === now.getFullYear() ? dayFormat : dayYearFormat).format(date);
 }
 
@@ -217,9 +218,9 @@ function render() {
 function renderStatus() {
   const snap = currentSnapshot();
   const error = state.lastError;
+  const captcha = Boolean(error && error.code === "CAPTCHA");
+  const cooling = isCoolingDown(snap);
   let text;
-  let title = "";
-  let link = null;
   let warn = false;
 
   if (flashMessage) {
@@ -228,40 +229,33 @@ function renderStatus() {
     text = "Syncing…";
   } else if (!state.scholarUserId) {
     text = "Not set up yet";
-  } else if (error && error.code === "CAPTCHA") {
-    text = "Verification needed";
-    title = "Google Scholar asked for a CAPTCHA. Solve it, then sync again.";
-    link = error.url || null;
-    warn = true;
+  } else if (captcha) {
+    text = "Retry sync";
   } else if (error) {
     text = ERROR_TEXT[error.code] || "Sync failed";
-    title = [error.detail, snap && `Showing data from ${formatWhen(snap.time)}`].filter(Boolean).join(" · ");
     warn = true;
   } else if (snap) {
     text = `Synced ${formatAgo(snap.time)}`;
-    title = "Syncs automatically every 6 hours";
   } else {
     text = "Not synced yet";
   }
 
-  statusEl.replaceChildren();
-  if (link) {
-    const a = el("a", null, text);
-    a.href = link;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.append(icon("tpl-arrow"));
-    statusEl.append(a);
-  } else {
-    statusEl.textContent = text;
-  }
-  statusEl.title = title;
-  statusEl.classList.toggle("is-warn", warn);
+  // The status lives inside the sync button, so its tooltip says what a click does.
+  let hint = "Sync now · syncs automatically every 6 hours";
+  if (syncing) hint = "Syncing…";
+  else if (!state.scholarUserId) hint = "Set up your Scholar profile";
+  else if (cooling) hint = `Next sync available in ${minutesUntilSync(snap)} min · syncs automatically every 6 hours`;
+  else if (error && !captcha) hint = [error.detail, snap && `Showing data from ${formatWhen(snap.time)}`, "Click to retry"].filter(Boolean).join(" · ");
 
-  const cooling = isCoolingDown(snap);
+  statusEl.textContent = text;
+  refreshBtn.title = hint;
+  refreshBtn.classList.toggle("is-warn", warn);
   refreshBtn.classList.toggle("is-spinning", syncing);
   refreshBtn.classList.toggle("is-cooling", cooling && !syncing);
-  refreshBtn.title = syncing ? "Syncing…" : cooling ? `Next sync available in ${minutesUntilSync(snap)} min` : "Sync now";
+
+  // A link cannot sit inside the button: when Scholar wants a CAPTCHA, a separate pill opens it.
+  verifyLinkEl.hidden = !(captcha && error.url);
+  if (captcha && error.url) verifyLinkEl.href = error.url;
 }
 
 // Shows a short message in the status line, then goes back to the normal status.
