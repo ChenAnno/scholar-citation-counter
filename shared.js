@@ -6,6 +6,9 @@ const DEFAULT_LANG = "en";
 
 const CONFIG_KEYS = ["scholarUserId", "scholarLang", "scholarDomain", "displayName", "homepageUrl"];
 
+// Once the user opens New citations, the list stays put this long (or until "Mark as seen").
+const KEEP_VIEWED_MS = 24 * 60 * 60 * 1000;
+
 // Badge text colors. The badge background stays transparent (no pill).
 const BADGE_COLORS = {
   normal: "#4A6B82", // thin morandi deep-blue number
@@ -58,6 +61,38 @@ function diffSinceSeen(snapshot, seen) {
   return result;
 }
 
+// The counts the user last looked at: the open list if they have viewed it, else the baseline.
+function lastLooked(seen, viewed) {
+  return viewed && seen && viewed.userId === seen.userId ? viewed : seen;
+}
+
+// A day after the user first opened the list, what they looked at becomes the new baseline,
+// so the list empties without them having to clear it. Returns true when it settled.
+async function settleSeen() {
+  const { viewed } = await chrome.storage.local.get("viewed");
+  if (!viewed || Date.now() - viewed.firstTime < KEEP_VIEWED_MS) return false;
+  const { firstTime, ...seen } = viewed;
+  await chrome.storage.local.set({ seen });
+  await chrome.storage.local.remove("viewed");
+  return true;
+}
+
+// Local calendar day, "2026-10-25".
+function localDay(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// The daily record behind the growth curve: one total per day, and a later sync on the
+// same day replaces that day's total. Kept for ten years.
+function recordDay(history, snapshot) {
+  const days = history && history.userId === snapshot.userId ? history.days.slice() : [];
+  const day = localDay(snapshot.time);
+  if (days.length > 0 && days[days.length - 1].d === day) days[days.length - 1] = { d: day, t: snapshot.total };
+  else days.push({ d: day, t: snapshot.total });
+  return { userId: snapshot.userId, days: days.slice(-3660) };
+}
+
 // Shortens large numbers to fit the toolbar badge, which has room for about four characters.
 function compactNumber(n) {
   if (n < 10000) return String(n);
@@ -66,9 +101,9 @@ function compactNumber(n) {
 }
 
 // Badge: "?" before setup, "!" when Scholar wants a CAPTCHA, otherwise the total
-// (green while there are new citations the user hasn't seen yet).
+// (green while there are new citations the user hasn't looked at yet).
 async function updateBadge() {
-  const s = await chrome.storage.local.get(["scholarUserId", "snapshot", "seen", "lastError"]);
+  const s = await chrome.storage.local.get(["scholarUserId", "snapshot", "seen", "viewed", "lastError"]);
   let text = "";
   let color = BADGE_COLORS.normal;
 
@@ -80,7 +115,7 @@ async function updateBadge() {
     color = BADGE_COLORS.warn;
   } else if (s.snapshot && s.snapshot.userId === s.scholarUserId) {
     text = compactNumber(s.snapshot.total);
-    if (diffSinceSeen(s.snapshot, s.seen).items.length > 0) color = BADGE_COLORS.fresh;
+    if (diffSinceSeen(s.snapshot, lastLooked(s.seen, s.viewed)).items.length > 0) color = BADGE_COLORS.fresh;
   }
 
   await chrome.action.setBadgeText({ text });

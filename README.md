@@ -11,8 +11,10 @@ Designed with a calm, Morandi-inspired color palette and an iOS-style slide-up i
 ## ✨ Features
 
 - **Live citation badge** — your total citation count sits on the extension icon and turns green when new citations are waiting.
-- **New citations** — see exactly which papers gained citations since you last looked, with before → after counts. Click a paper to see who cited it, newest first.
-- **At a glance** — your total citations, with a `+N` for what's new since your last look.
+- **New citations** — see exactly which papers gained citations, with before → after counts. Click a paper to see who cited it, newest first. The list stays for a day after you first open it, or clear it yourself with **Clear now**.
+- **Citation growth** — the 📈 button (top left of the card) opens a curve of your total citations, recorded every day and growing as time passes (30D / 1Y / All). Before recording began, it starts from Scholar's year-end totals.
+- **At a glance** — your total citations, with a `+N` for what's new, plus Homepage and Scholar buttons.
+- **Tap your name to sync** — your display name at the top is the sync button. Set it to an emoji like 🚀 and it flies while syncing.
 - **Privacy-friendly** — everything runs locally in your browser. No accounts, no servers, no tracking. Your configuration is stored only in `chrome.storage.local`.
 - **One-time setup** — paste your Scholar profile URL on first launch and you're done.
 - **Polished UI** — slide-up sheets, soft shadows, a Morandi color scheme, and automatic dark mode.
@@ -44,7 +46,7 @@ On first launch the popup opens the **Settings** drawer automatically. Fill in:
 
 Click **Save** and Scholar Rocket fetches your stats.
 
-To change any of this later, click the **⚙ gear** in the top-right corner of the popup.
+To change any of this later, click the **⚙** button in the top-right corner of the card.
 
 ### Where do I find my Scholar profile URL?
 
@@ -52,21 +54,28 @@ Open [Google Scholar](https://scholar.google.com/), sign in, click your profile,
 
 ## 🆕 How "New citations" works
 
-The **New citations** list shows what changed since the last time *you opened it*:
+The **New citations** list shows what changed since your counts were last cleared:
 
 1. The first sync records your current citation counts as the starting point.
-2. Every later sync compares against the counts you last saw, so increases add up until you look.
-3. Opening **New citations** lists each paper that gained citations (and papers newly added to your profile), then marks them as seen.
-4. Open it again before anything new arrives and it tells you you're all caught up.
+2. Every later sync compares against that starting point, so increases add up until you look.
+3. Opening **New citations** lists each paper that gained citations (and papers newly added to your profile). The list then **stays for 24 hours from when you first opened it**, so you can come back to it.
+4. Click **Clear now** to clear it right away; otherwise it clears itself a day later and the counts you looked at become the new starting point.
+5. Citations that arrive after you opened the list are marked with a dot and stay until you have looked at them.
 
-The `+N` next to your total and the green toolbar badge follow the same rule and reset when you open the list.
+The toolbar badge turns green while there are citations you haven't looked at yet. The `+N` next to your total stays until the list is cleared.
+
+## 📈 How the growth curve works
+
+- Every successful sync saves that day's total citations (a later sync on the same day replaces it), so the curve gains one point per day.
+- For the time before the extension started recording, the curve begins with your year-end totals from Scholar's citations-per-year chart.
+- Once there is a week of daily data, switch between **30D**, **1Y** and **All**; shorter ranges zoom in so day-to-day growth is visible.
 
 ## 🔄 How syncing works
 
 - Scholar Rocket refreshes automatically in the background every **6 hours**, and when you open the popup if the data is older than that.
 - Each sync reads every page of your profile (up to 1,000 papers), so a paper moving up the citation ranking is never mistaken for new citations.
-- You can refresh manually with the **⟳** button next to the status line (once per hour to stay polite to Google).
-- If Google shows a CAPTCHA, the status line shows **Verification needed** — click it, solve the CAPTCHA, and sync again.
+- You can sync manually by tapping your **display name** at the top of the popup (once per hour to stay polite to Google); hover it to see when the last sync was.
+- If Google shows a CAPTCHA, a **Verify ↗** chip appears under your name — click it, solve the CAPTCHA, then tap your name to retry.
 
 ## 🗂️ Project Structure
 

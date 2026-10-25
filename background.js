@@ -43,6 +43,27 @@ function parseProfile(html) {
   return { name: name ? cleanText(name[1]) : "", total: toInt(total[1]) };
 }
 
+// Citations per year from the profile's "Cited by" histogram (every year, not just the
+// recent ones in the sidebar). Bars and year labels are placed by their `right` offset, and a
+// year with no citations has a label but no bar, so each bar goes to its nearest label.
+function parseHistogram(html) {
+  const start = html.indexOf('class="gsc_md_hist_b"');
+  if (start < 0) return [];
+  const block = html.slice(start, html.indexOf("</div>", start));
+
+  const years = [...block.matchAll(/class="gsc_g_t"[^>]*style="[^"]*right:(\d+)px[^"]*"[^>]*>(\d{4})</g)]
+    .map((m) => ({ right: Number(m[1]), year: Number(m[2]), cites: 0 }));
+  for (const m of block.matchAll(/class="gsc_g_a"[^>]*style="[^"]*right:(\d+)px[^"]*"[^>]*>\s*<span class="gsc_g_al">([^<]*)</g)) {
+    const right = Number(m[1]);
+    let nearest = null;
+    for (const y of years) {
+      if (!nearest || Math.abs(y.right - right) < Math.abs(nearest.right - right)) nearest = y;
+    }
+    if (nearest) nearest.cites = toInt(m[2]);
+  }
+  return years.map(({ year, cites }) => ({ year, cites })).sort((a, b) => a.year - b.year);
+}
+
 // One entry per row of the papers table. Rows are split first so a regex can never
 // match across two papers and misalign titles and counts.
 function parsePapers(html) {
@@ -90,6 +111,7 @@ async function runSync() {
 
   try {
     let profile = null;
+    let byYear = [];
     const papers = {};
 
     // Read every page of the profile, so a paper's earlier count is always known and a
@@ -111,6 +133,7 @@ async function runSync() {
       if (page === 0) {
         profile = parseProfile(html);
         if (!profile) return fail("PARSE", url);
+        byYear = parseHistogram(html);
       }
 
       const rows = parsePapers(html);
@@ -123,16 +146,19 @@ async function runSync() {
       if (rows.length < PAGE_SIZE || added === 0) break;
     }
 
-    const snapshot = { userId: cfg.scholarUserId, time: Date.now(), ...profile, papers };
+    const snapshot = { userId: cfg.scholarUserId, time: Date.now(), ...profile, byYear, papers };
     const update = { snapshot };
 
     // First sync for this profile: start the New citations list from here, so it does not
     // report the whole existing record as new.
-    const { seen } = await chrome.storage.local.get("seen");
-    if (!seen || seen.userId !== snapshot.userId) update.seen = toSeen(snapshot, snapshot.time);
+    const { seen, history } = await chrome.storage.local.get(["seen", "history"]);
+    const fresh = !seen || seen.userId !== snapshot.userId;
+    if (fresh) update.seen = toSeen(snapshot, snapshot.time);
+    update.history = recordDay(history, snapshot);
 
     await chrome.storage.local.set(update);
-    await chrome.storage.local.remove("lastError");
+    await chrome.storage.local.remove(fresh ? ["lastError", "viewed"] : "lastError");
+    await settleSeen();
     await updateBadge();
     return { success: true, count: snapshot.total };
   } catch (e) {
