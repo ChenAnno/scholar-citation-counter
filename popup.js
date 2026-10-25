@@ -501,6 +501,7 @@ newRowBtn.addEventListener("click", () => {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGES = [["30D", 30], ["1Y", 365], ["All", Infinity]];
 const RANGE_KEY = "growthRange";   // the viewer's last choice, a per-browser convenience
+const RECENT_SHARE = 0.62;          // width given to the recent stretch in long views
 const monthFormat = new Intl.DateTimeFormat("en-US", { month: "short" });
 
 // Total citations at the end of each year. Scholar gives citations per year; counting back
@@ -660,7 +661,19 @@ function renderChart(snap, rangeLabel) {
   const fromZero = range === "All";
   const values = inWindow.map((p) => p.total);
   const { bottom, top, step } = niceRange(Math.min(...values), Math.max(...values), fromZero);
-  const x = (t) => (last.t === from ? M.left + plotW / 2 : M.left + ((t - from) / (last.t - from)) * plotW);
+  // Long views give the recent stretch (from the 1st of last month) most of the width, so
+  // recent growth is not squeezed against the right edge. A light band marks the zoomed part.
+  const end = new Date(last.t);
+  const pivot = new Date(end.getFullYear(), end.getMonth() - 1, 1).getTime();
+  const split = pivot - from > 90 * DAY_MS && last.t > pivot;
+  const xPivot = M.left + plotW * (1 - RECENT_SHARE);
+  const x = (t) => {
+    if (last.t === from) return M.left + plotW / 2;
+    if (!split) return M.left + ((t - from) / (last.t - from)) * plotW;
+    return t <= pivot
+      ? M.left + ((t - from) / (pivot - from)) * (xPivot - M.left)
+      : xPivot + ((t - pivot) / (last.t - pivot)) * (M.left + plotW - xPivot);
+  };
   const y = (v) => M.top + plotH - ((v - bottom) / (top - bottom)) * plotH;
 
   const svg = svgEl("svg", {
@@ -679,6 +692,8 @@ function renderChart(snap, rangeLabel) {
   defs.append(fill, clip);
   svg.append(defs);
 
+  if (split) svg.append(svgEl("rect", { class: "recent-band", x: xPivot, y: M.top, width: M.left + plotW - xPivot, height: plotH }));
+
   // Recessive hairline grid with compact y ticks.
   for (let v = bottom; v <= top + step / 2; v += step) {
     svg.append(svgEl("line", { class: "chart-grid", x1: M.left, x2: W - M.right, y1: y(v), y2: y(v) }));
@@ -686,9 +701,19 @@ function renderChart(snap, rangeLabel) {
     label.textContent = compactTick(v);
     svg.append(label);
   }
-  for (const tick of timeTicks(from, last.t)) {
+  // Date labels: with the split, a couple on each side plus the date where the zoom starts.
+  // Kept at least 38px apart, preferring the zoom start and the latest dates.
+  const candidates = split
+    ? [{ t: pivot, label: dayFormat.format(pivot) },
+       ...timeTicks(pivot, last.t).filter((tk) => tk.t > pivot).reverse(),
+       ...timeTicks(from, pivot).filter((tk) => tk.t < pivot).reverse()]
+    : timeTicks(from, last.t).reverse();
+  const placed = [];
+  for (const tick of candidates) {
     const tx = x(tick.t);
     if (tx < M.left + 10 || tx > W - 4) continue;
+    if (placed.some((px) => Math.abs(px - tx) < 38)) continue;
+    placed.push(tx);
     const label = svgEl("text", { x: tx, y: H - 4, "text-anchor": "middle" });
     label.textContent = tick.label;
     svg.append(label);

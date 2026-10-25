@@ -69,6 +69,7 @@ The toolbar badge turns green while there are citations you haven't looked at ye
 - Every successful sync saves that day's total citations (a later sync on the same day replaces it), so the curve gains one point per day.
 - For the time before the extension started recording, the curve begins with your year-end totals from Scholar's citations-per-year chart.
 - Once there is a week of daily data, switch between **30D**, **1Y** and **All**; shorter ranges zoom in so day-to-day growth is visible.
+- In **All** and **1Y**, the recent stretch (from the 1st of last month) takes most of the width, under a light band, so recent growth isn't squeezed into a corner.
 
 ## 🔄 How syncing works
 
